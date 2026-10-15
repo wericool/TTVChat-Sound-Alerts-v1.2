@@ -25,8 +25,18 @@ pub struct Shared {
     pub connection: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
 }
 
+/// Запись журнала: `system` / `ok` / `warn` / `error` — служебные сообщения.
+pub fn log_kind(app: &AppHandle, kind: &str, message: impl Into<String>) {
+    let _ = app.emit("log", serde_json::json!({ "kind": kind, "text": message.into() }));
+}
+
 pub fn log(app: &AppHandle, message: impl Into<String>) {
-    let _ = app.emit("log", message.into());
+    log_kind(app, "system", message);
+}
+
+/// Команда от зрителя (`chat`) или ручная проверка (`test`).
+pub fn log_command(app: &AppHandle, kind: &str, user: &str, command: &str) {
+    let _ = app.emit("log", serde_json::json!({ "kind": kind, "user": user, "command": command }));
 }
 
 #[derive(Serialize)]
@@ -67,7 +77,7 @@ fn set_master(state: State<Shared>, volume: f64) {
 
 #[tauri::command]
 fn play_test(state: State<Shared>, command: SoundCommand) {
-    let _ = state.audio.lock().unwrap().send(AudioMsg::Enqueue(command, "Проверка".into()));
+    let _ = state.audio.lock().unwrap().send(AudioMsg::Enqueue(command, player::TEST_USER.into()));
 }
 
 #[tauri::command]

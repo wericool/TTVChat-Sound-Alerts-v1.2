@@ -1,4 +1,4 @@
-use crate::{log, player::{AudioMsg, QUEUE_LIMIT}, Shared};
+﻿use crate::{player::{AudioMsg, QUEUE_LIMIT}, Shared};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use std::sync::atomic::Ordering;
@@ -9,7 +9,7 @@ use tokio_tungstenite::tungstenite::Message;
 fn status(app: &AppHandle, state: &str, text: impl Into<String>) {
     let text = text.into();
     let _ = app.emit("status", json!({ "state": state, "text": text }));
-    log(app, text);
+    crate::log_kind(app, state, text);
 }
 
 /// Анонимное чтение чата с переподключением и нарастающей паузой.

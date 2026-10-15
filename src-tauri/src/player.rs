@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 pub const QUEUE_LIMIT: usize = 50;
+pub const TEST_USER: &str = "Проверка";
 
 pub enum AudioMsg {
     Enqueue(SoundCommand, String),
@@ -36,9 +37,9 @@ pub fn spawn(app: AppHandle, rx: mpsc::Receiver<AudioMsg>, pending: Arc<AtomicUs
             match rx.recv_timeout(Duration::from_millis(80)) {
                 Ok(AudioMsg::Enqueue(cmd, user)) => {
                     if queue.len() >= QUEUE_LIMIT {
-                        crate::log(&app, "Очередь заполнена. Запрос пропущен.");
+                        crate::log_kind(&app, "warn", "Очередь заполнена. Запрос пропущен.");
                     } else {
-                        crate::log(&app, format!("{} · {user}", cmd.command));
+                        crate::log_command(&app, if user == TEST_USER { "test" } else { "chat" }, &user, &cmd.command);
                         queue.push_back((cmd, user));
                         dirty = true;
                     }
@@ -74,7 +75,7 @@ pub fn spawn(app: AppHandle, rx: mpsc::Receiver<AudioMsg>, pending: Arc<AtomicUs
                 dirty = true;
                 match start(&mut device, &cmd, master) {
                     Ok(player) => current = Some(Current { command: cmd, user, player, deadline: Instant::now() + Duration::from_secs(900) }),
-                    Err(e) => crate::log(&app, e),
+                    Err(e) => crate::log_kind(&app, "error", e),
                 }
             }
             if dirty {

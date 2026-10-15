@@ -79,7 +79,23 @@ aside{background:var(--surface);border-left:1px solid var(--line);min-height:0;o
 .filebox{background:var(--field);border-radius:10px;padding:9px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .journal{padding:18px 22px;display:flex;flex-direction:column;height:100%}.journal.hide{display:none}
 .journal h3{margin:0 0 12px;font-size:16px;font-weight:600}
-.log{flex:1;overflow-y:auto;font-size:12px;color:#cbd3e8}.log div{margin-bottom:8px;overflow-wrap:anywhere}
+.tabs{display:flex;gap:4px;background:var(--field);border-radius:10px;padding:3px;margin-bottom:12px}
+.tabs button{flex:1;min-height:28px;padding:3px 8px;font-size:12px;background:transparent;color:var(--muted);border-radius:8px;border-color:transparent}
+.tabs button.on{background:#2a2f4a;color:var(--text)}
+.log{flex:1;overflow-y:auto;font-size:12px;display:flex;flex-direction:column;gap:6px;align-content:flex-start}
+.log[data-filter=chat] .l.sys,.log[data-filter=sys] .l.chat,.log[data-filter=sys] .l.test{display:none}
+.l time{color:#5b6485;font-variant-numeric:tabular-nums;margin-right:8px}
+/* команды зрителей: карточка с цветным именем */
+.l.chat,.l.test{background:var(--card);border-left:3px solid var(--accent);border-radius:8px;padding:7px 10px}
+.l.test{border-left-color:#5b6485}
+.l .who{display:flex;align-items:center;font-size:12px;margin-bottom:2px}
+.l .who b{font-weight:600}.l .testlbl{color:var(--muted)}
+.l .cmd{font-size:14px;font-weight:600;overflow-wrap:anywhere}
+/* системные: тихие строки со значком */
+.l.sys{color:var(--muted);padding:1px 2px;overflow-wrap:anywhere}
+.l.sys span::before{content:"· ";color:#5b6485}
+.l.sys.ok{color:var(--good)}.l.sys.warn{color:var(--warn)}.l.sys.error{color:var(--bad)}
+.l.sys.ok span::before,.l.sys.warn span::before,.l.sys.error span::before{color:inherit}
 .tip{background:var(--card);border-radius:10px;padding:10px 12px;margin-top:12px;color:var(--muted);font-size:12px}
 /* dock */
 footer{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--surface);border-top:1px solid var(--line)}
@@ -159,7 +175,10 @@ footer{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var
     </div>
     <div class="journal" id="journal">
       <h3>Журнал</h3>
-      <div class="log" id="log"></div>
+      <div class="tabs" id="logTabs">
+        <button class="on" data-f="all">Все</button><button data-f="chat">Команды</button><button data-f="sys">Система</button>
+      </div>
+      <div class="log" id="log" data-filter="all"></div>
       <div class="tip">💡 Нажмите на карточку, чтобы настроить команду, кулдаун и громкость.</div>
     </div>
   </aside>
@@ -194,11 +213,26 @@ const hue = name => { let h = 7; for (const ch of name.toLowerCase()) h = (Math.
 const letter = name => (name.replace(/^!+/, '').match(/[\p{L}\p{N}]/u) || ['♪'])[0].toUpperCase();
 const cdText = c => c.CooldownSeconds === 0 ? 'без кулдауна' : `${c.CooldownSeconds} с · ${c.IsPersonalCooldown ? 'на зрителя' : 'для всех'}`;
 
-function log(msg) {
+// kind: chat (команда зрителя) · test (ручная проверка) · system · ok · warn · error
+function log(msg, kind = 'system', extra = {}) {
   const row = document.createElement('div');
-  row.textContent = new Date().toTimeString().slice(0, 8) + '  ' + msg;
+  const time = `<time>${new Date().toTimeString().slice(0, 8)}</time>`;
+  if (kind === 'chat' || kind === 'test') {
+    const user = extra.user || '', h = hue(user);
+    row.className = 'l ' + kind;
+    row.innerHTML = `<div class="who">${time}` + (kind === 'chat'
+      ? `<b style="color:hsl(${h} 75% 72%)">${esc(user)}</b>`
+      : '<b class="testlbl">проверка</b>') + `</div><div class="cmd">${esc(extra.command || '')}</div>`;
+  } else {
+    row.className = 'l sys ' + kind;
+    row.innerHTML = `${time}<span>${esc(msg)}</span>`;
+  }
   $('log').prepend(row);
-  while ($('log').children.length > 150) $('log').lastChild.remove();
+  while ($('log').children.length > 200) $('log').lastChild.remove();
+}
+function setLogFilter(f) {
+  $('log').dataset.filter = f;
+  document.querySelectorAll('#logTabs button').forEach(b => b.classList.toggle('on', b.dataset.f === f));
 }
 function toast(msg) {
   $('toast').textContent = msg; $('toast').style.display = 'block';
@@ -401,7 +435,8 @@ window.__TAURI__.webview.getCurrentWebview().onDragDropEvent(e => {
 });
 
 // ───────── События от Rust ─────────
-listen('log', e => log(e.payload));
+listen('log', e => { const p = e.payload; log(p.text, p.kind, p); });
+$('logTabs').onclick = e => { const b = e.target.closest('button'); if (b) setLogFilter(b.dataset.f); };
 listen('status', e => setStatus(e.payload.state, e.payload.text));
 listen('player', e => {
   const { playing, pending } = e.payload;
