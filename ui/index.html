@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTVChat · Sound Alerts</title>
+<style>
+:root{--bg:#0e1016;--surface:#151823;--card:#1b1f2e;--line:#272c40;--text:#edf0f8;--muted:#8e99b5;--accent:#8b5cf6;--accent-l:#b39cfa;--good:#4ade80;--warn:#fbbf24;--bad:#f87171;--field:#0e1119}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI",system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;user-select:none;-webkit-user-select:none}
+input,button{font:inherit;color:inherit}
+input[type=text]{user-select:text;-webkit-user-select:text}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#394060;border-radius:6px;border:2px solid transparent;background-clip:content-box}::-webkit-scrollbar-track{background:transparent}
+.caption{color:var(--muted);font-size:12px}
+/* buttons */
+button{background:#222740;border:1.5px solid transparent;border-radius:10px;padding:9px 16px;min-height:38px;cursor:pointer;white-space:nowrap;transition:border-color .12s,opacity .12s}
+button:hover{border-color:var(--accent-l)}button:active{opacity:.8}button:disabled{opacity:.4;pointer-events:none}
+button.primary{background:var(--accent);font-weight:600}
+button.ghost{background:transparent;color:var(--muted)}
+button.danger{background:#2a1f2b;color:var(--bad)}
+button.round{width:32px;height:32px;min-height:32px;padding:0;border-radius:50%;background:var(--accent);font-size:11px;display:grid;place-items:center}
+/* fields */
+input[type=text]{background:var(--field);border:1.5px solid var(--line);border-radius:10px;padding:0 14px;height:38px;width:100%;outline:none}
+input[type=text]:focus{border-color:var(--accent)}
+/* switch */
+.switch{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch i{width:38px;height:22px;border-radius:11px;background:#2e3450;position:relative;transition:background .15s;flex:none}
+.switch i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch input:checked+i{background:var(--accent)}.switch input:checked+i::after{transform:translateX(16px)}
+/* range */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;cursor:pointer;--p:50%}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p),#2e3450 var(--p))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;margin-top:-6px}
+/* top bar */
+header{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand b{display:block;font-size:20px}.brand span{font-size:12px;color:var(--accent-l)}
+.spacer{flex:1}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:10px;height:10px;border-radius:50%;background:#5b6485;flex:none}
+.dot.ok{background:var(--good)}.dot.warn{background:var(--warn)}
+header input[type=text]{width:240px}
+.pop{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;width:230px;box-shadow:0 8px 28px #0008;z-index:20;display:none}
+.menu.open{display:block}
+.menu button{display:block;width:100%;text-align:left;margin-top:4px}
+/* layout */
+main{display:grid;grid-template-columns:1fr 340px;min-height:0}
+.library{padding:20px 20px 0 24px;display:flex;flex-direction:column;min-height:0}
+.lib-head{display:flex;align-items:center;gap:24px;margin-bottom:16px}
+.lib-head h1{font-size:22px;font-weight:600;margin:0}
+.search{flex:1;max-width:320px;position:relative}
+.search span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search input{padding-left:40px}
+.lib-body{position:relative;flex:1;min-height:0;overflow-y:auto;padding-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(206px,1fr));gap:12px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px;height:146px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .12s}
+.card:hover{border-color:#3a4162}
+.card.sel{border-color:var(--accent)}.card.playing{border-color:var(--good)}.card.off{opacity:.55}
+.card .top{display:flex;justify-content:space-between;align-items:center}
+.badge{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:16px}
+.card .mid{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.card .name{font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .file{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.card .file.missing{color:var(--bad)}
+.card .bottom{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card .bottom span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{position:absolute;inset:0 0 24px;border:2px dashed var(--line);border-radius:18px;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.empty.show{display:flex}.empty .big{font-size:46px}.empty h2{font-size:20px;margin:14px 0 6px}
+.empty .row{display:flex;gap:8px;margin-top:22px}
+/* side */
+aside{background:var(--surface);border-left:1px solid var(--line);min-height:0;overflow-y:auto}
+.editor{padding:18px 22px;display:none}.editor.show{display:block}
+.editor .head{display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:600}
+.lbl{margin:18px 0 6px}
+.row2{display:flex;justify-content:space-between;margin:14px 0 6px}
+.err{color:var(--bad);font-size:12px;margin:6px 2px 0;display:none}
+.filebox{background:var(--field);border-radius:10px;padding:9px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.journal{padding:18px 22px;display:flex;flex-direction:column;height:100%}.journal.hide{display:none}
+.journal h3{margin:0 0 12px;font-size:16px;font-weight:600}
+.log{flex:1;overflow-y:auto;font-size:12px;color:#cbd3e8}.log div{margin-bottom:8px;overflow-wrap:anywhere}
+.tip{background:var(--card);border-radius:10px;padding:10px 12px;margin-top:12px;color:var(--muted);font-size:12px}
+/* dock */
+footer{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--surface);border-top:1px solid var(--line)}
+.np{display:flex;align-items:center;gap:14px;flex:1;min-width:0}
+.np .ic{width:40px;height:40px;border-radius:12px;background:#222740;display:grid;place-items:center;color:var(--accent-l);font-size:18px;flex:none}
+.np b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vol{display:flex;align-items:center;gap:10px;width:230px}.vol .caption{width:36px;text-align:right}
+#queue{color:var(--accent-l);font-size:12px}
+/* overlays */
+#drop{position:fixed;inset:0;background:#0e1016e6;display:none;align-items:center;justify-content:center;z-index:50;pointer-events:none}
+#drop.show{display:flex}
+#drop div{position:absolute;inset:40px;border:3px dashed var(--accent);border-radius:22px}
+#drop section{text-align:center}#drop h2{margin:12px 0 6px;font-size:22px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#2a2f4a;border:1px solid var(--accent);border-radius:12px;padding:11px 18px;font-weight:600;display:none;z-index:40}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>TTVChat</b><span>Sound Alerts</span></div>
+  <div class="spacer"></div>
+  <div class="status"><i class="dot" id="dot"></i><span id="statusText">Не подключён</span></div>
+  <input type="text" id="channel" placeholder="Канал Twitch или ссылка" spellcheck="false">
+  <button class="primary" id="connectBtn" style="min-width:124px">Подключиться</button>
+  <div class="pop">
+    <button class="ghost" id="menuBtn" title="Настройки" style="font-size:18px;padding:4px 12px">⚙</button>
+    <div class="menu" id="menu">
+      <label class="switch" style="margin:6px 6px 12px"><input type="checkbox" id="tray"><i></i>Сворачивать в трей</label>
+      <button class="ghost" id="importBtn">Импорт настроек…</button>
+      <button class="ghost" id="exportBtn">Экспорт настроек…</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="library">
+    <div class="lib-head">
+      <div><h1>Звуки</h1><div class="caption" id="count"></div></div>
+      <div class="search"><span>🔍</span><input type="text" id="search" placeholder="Поиск" spellcheck="false"></div>
+      <div class="spacer"></div>
+      <div class="pop">
+        <button class="primary" id="addBtn">＋&nbsp; Добавить звуки</button>
+        <div class="menu" id="addMenu">
+          <button class="ghost" id="addFiles" style="color:var(--text)">🎵&nbsp; Выбрать файлы…</button>
+          <button class="ghost" id="addFolder" style="color:var(--text)">📁&nbsp; Выбрать папку целиком…</button>
+          <div class="caption" style="margin:10px 8px 2px">Или просто перетащите файлы и папки в окно.</div>
+        </div>
+      </div>
+    </div>
+    <div class="lib-body">
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty">
+        <div class="big">🎧</div>
+        <h2>Перетащите сюда звуки или целую папку</h2>
+        <div class="caption">Для каждого файла команда создастся сама, настроить её можно потом.</div>
+        <div class="row"><button class="primary" id="addFiles2">🎵&nbsp; Выбрать файлы</button><button id="addFolder2">📁&nbsp; Выбрать папку</button></div>
+        <div class="caption" style="margin-top:16px">MP3 · WAV · M4A · AAC · OGG · FLAC</div>
+      </div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="editor" id="editor">
+      <div class="head"><span>Настройка звука</span><button class="ghost" id="closeEditor" style="min-height:30px;padding:2px 10px">✕</button></div>
+      <div class="caption lbl">Команда в чате</div>
+      <input type="text" id="nameInput" spellcheck="false"><div class="err" id="nameErr"></div>
+      <div class="caption lbl">Звуковой файл</div>
+      <div class="filebox" id="fileBox"></div>
+      <button class="ghost" id="replaceBtn" style="padding:6px 4px;margin-top:6px;min-height:0">Заменить файл…</button>
+      <div class="row2"><span class="caption">Кулдаун</span><span style="font-size:12px" id="cdText"></span></div>
+      <input type="range" id="cd" min="0" max="300" step="1">
+      <label class="switch" style="margin-top:12px"><input type="checkbox" id="personal"><i></i>Отдельно для каждого зрителя</label>
+      <div class="row2" style="margin-top:22px"><span class="caption">Громкость звука</span><span style="font-size:12px" id="volText"></span></div>
+      <input type="range" id="vol" min="0" max="100" step="1">
+      <button class="primary" id="testBtn" style="width:100%;margin:28px 0 8px">▶&nbsp; Проверить звук</button>
+      <button class="danger" id="delBtn" style="width:100%">Удалить команду</button>
+      <div class="caption" style="margin:8px 2px 0">Файл на диске останется нетронутым.</div>
+    </div>
+    <div class="journal" id="journal">
+      <h3>Журнал</h3>
+      <div class="log" id="log"></div>
+      <div class="tip">💡 Нажмите на карточку, чтобы настроить команду, кулдаун и громкость.</div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="np"><div class="ic">♪</div><div style="min-width:0"><b id="npTitle">Тишина</b><span class="caption" id="npSub">Ждём команды из чата</span></div></div>
+  <button id="skipBtn">⏭&nbsp; Пропустить</button>
+  <button class="ghost" id="clearBtn" style="display:none">Очистить очередь</button>
+  <span id="queue"></span>
+  <div class="vol"><span>🔊</span><input type="range" id="master" min="0" max="100" step="1"><span class="caption" id="masterText"></span></div>
+</footer>
+
+<div id="drop"><div></div><section><div style="font-size:54px">📥</div><h2>Отпустите, чтобы добавить звуки</h2><div class="caption">Можно файлы и папки целиком</div></section></div>
+<div id="toast"></div>
+
+<script>
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+const dialog = window.__TAURI__.dialog;
+const $ = id => document.getElementById(id);
+const AUDIO = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
+
+let cfg = { CommandSettings: [], MasterVolume: 80, MinimizeToTray: true, LastChannelName: '' };
+let selected = null, missing = new Set(), playingName = null, connected = false, readOnly = false;
+let saveTimer = null, toastTimer = null, delTimer = null;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fileName = p => p.split(/[\\/]/).pop();
+const fill = el => el.style.setProperty('--p', (el.value - el.min) / (el.max - el.min) * 100 + '%');
+const hue = name => { let h = 7; for (const ch of name.toLowerCase()) h = (Math.imul(h, 31) + ch.codePointAt(0)) | 0; return Math.abs(h % 360); };
+const letter = name => (name.replace(/^!+/, '').match(/[\p{L}\p{N}]/u) || ['♪'])[0].toUpperCase();
+const cdText = c => c.CooldownSeconds === 0 ? 'без кулдауна' : `${c.CooldownSeconds} с · ${c.IsPersonalCooldown ? 'на зрителя' : 'для всех'}`;
+
+function log(msg) {
+  const row = document.createElement('div');
+  row.textContent = new Date().toTimeString().slice(0, 8) + '  ' + msg;
+  $('log').prepend(row);
+  while ($('log').children.length > 150) $('log').lastChild.remove();
+}
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').style.display = 'none', 3500);
+  log(msg);
+}
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    cfg.LastChannelName = $('channel').value.trim();
+    try { await invoke('save_config', { config: cfg }); } catch (e) { log(String(e)); }
+  }, 450);
+}
+async function refreshMissing() {
+  missing = new Set(await invoke('missing_files', { paths: cfg.CommandSettings.map(c => c.SoundFilePath) }));
+  render();
+}
+
+// ───────── Библиотека ─────────
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const list = cfg.CommandSettings;
+  $('empty').classList.toggle('show', list.length === 0);
+  $('count').textContent = list.length ? `${list.length} шт. · включено ${list.filter(c => c.Enabled).length}` : 'Пока пусто';
+  $('grid').innerHTML = list.map((c, i) => ({ c, i })).filter(({ c }) => !q || c.Command.toLowerCase().includes(q) || fileName(c.SoundFilePath).toLowerCase().includes(q)).map(({ c, i }) => {
+    const h = hue(c.Command), miss = missing.has(c.SoundFilePath);
+    const cls = ['card', c === selected && 'sel', playingName && c.Command.toLowerCase() === playingName.toLowerCase() && 'playing', !c.Enabled && 'off'].filter(Boolean).join(' ');
+    return `<div class="${cls}" data-i="${i}">
+      <div class="top"><div class="badge" style="background:hsl(${h} 55% 55% / .16);color:hsl(${h} 70% 72%)">${esc(letter(c.Command))}</div>
+        <label class="switch" title="Включить / выключить"><input type="checkbox" data-act="toggle" ${c.Enabled ? 'checked' : ''}><i></i></label></div>
+      <div class="mid"><div class="name">${esc(c.Command)}</div><div class="file ${miss ? 'missing' : ''}">${miss ? '⚠ файл не найден' : esc(fileName(c.SoundFilePath))}</div></div>
+      <div class="bottom"><span class="caption">${esc(cdText(c))}</span><button class="round" data-act="play" title="Проиграть для проверки">▶</button></div></div>`;
+  }).join('');
+}
+$('grid').addEventListener('click', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const c = cfg.CommandSettings[+card.dataset.i], act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'play') return invoke('play_test', { command: c });
+  if (act === 'toggle') { if (e.target.tagName === 'INPUT') { c.Enabled = e.target.checked; scheduleSave(); render(); } return; }
+  select(c === selected ? null : c);
+});
+
+function slug(path) {
+  const stem = fileName(path).replace(/\.[^.]+$/, '').trim().toLowerCase().replace(/[\s.\-]/g, '_');
+  const s = [...stem].filter(ch => /[\p{L}\p{N}_]/u.test(ch)).join('').replace(/^_+|_+$/g, '');
+  return s || 'sound';
+}
+async function addPaths(paths) {
+  if (readOnly) log('Настройки не прочитаны — автозапись отключена; импортируйте исправный файл.');
+  const files = await invoke('scan_paths', { paths });
+  if (!files.length) return toast('Аудиофайлов не найдено (mp3, wav, m4a, aac, ogg, flac).');
+  const used = new Set(cfg.CommandSettings.map(c => c.Command.toLowerCase()));
+  const known = new Set(cfg.CommandSettings.map(c => c.SoundFilePath.toLowerCase()));
+  let added = 0, skipped = 0, last = null;
+  for (const f of files) {
+    if (known.has(f.toLowerCase())) { skipped++; continue; }
+    let stem = ('!' + slug(f)).slice(0, 55), name = stem, n = 2;
+    while (used.has(name.toLowerCase())) name = stem + '_' + n++;
+    used.add(name.toLowerCase()); known.add(f.toLowerCase());
+    last = { Command: name, SoundFilePath: f, CooldownSeconds: 15, Volume: 80, IsPersonalCooldown: false, Enabled: true };
+    cfg.CommandSettings.push(last); added++;
+  }
+  if (!added) return toast('Эти звуки уже добавлены.');
+  await invoke('save_config', { config: cfg });
+  select(added === 1 ? last : null);
+  await refreshMissing();
+  toast(added === 1 ? `Добавлено: ${last.Command}` : `Добавлено звуков: ${added}` + (skipped ? ` (уже были: ${skipped})` : ''));
+}
+async function pickFiles() {
+  closeMenus();
+  const r = await dialog.open({ multiple: true, title: 'Выберите звуки', filters: [{ name: 'Аудио', extensions: AUDIO }] });
+  if (r) addPaths(Array.isArray(r) ? r : [r]);
+}
+async function pickFolder() {
+  closeMenus();
+  const r = await dialog.open({ directory: true, title: 'Папка со звуками (вместе с вложенными)' });
+  if (r) addPaths([r]);
+}
+$('addFiles').onclick = $('addFiles2').onclick = pickFiles;
+$('addFolder').onclick = $('addFolder2').onclick = pickFolder;
+$('search').oninput = render;
+
+// ───────── Редактор ─────────
+function select(c) {
+  selected = c;
+  $('editor').classList.toggle('show', !!c);
+  $('journal').classList.toggle('hide', !!c);
+  if (c) fillEditor(c);
+  render();
+}
+function fillEditor(c) {
+  $('nameInput').value = c.Command; $('nameErr').style.display = 'none';
+  $('fileBox').textContent = missing.has(c.SoundFilePath) ? '⚠ файл не найден' : fileName(c.SoundFilePath);
+  $('fileBox').title = c.SoundFilePath;
+  $('cd').value = c.CooldownSeconds; fill($('cd')); $('cdText').textContent = cdText(c);
+  $('personal').checked = c.IsPersonalCooldown;
+  $('vol').value = c.Volume; fill($('vol')); $('volText').textContent = c.Volume + '%';
+  $('delBtn').textContent = 'Удалить команду';
+}
+function applyName() {
+  if (!selected) return;
+  let t = $('nameInput').value.trim();
+  if (t === selected.Command) return $('nameErr').style.display = 'none';
+  if (t && !t.startsWith('!')) t = '!' + t;
+  let err = '';
+  if (!t || t.length > 60 || /\s/.test(t)) err = 'Команда должна быть одним словом, до 60 символов.';
+  else if (cfg.CommandSettings.some(c => c !== selected && c.Command.toLowerCase() === t.toLowerCase())) err = 'Такая команда уже есть.';
+  if (err) { $('nameErr').textContent = err; $('nameErr').style.display = 'block'; return; }
+  selected.Command = t; $('nameInput').value = t; $('nameErr').style.display = 'none'; scheduleSave(); render();
+}
+$('nameInput').onblur = applyName;
+$('nameInput').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+$('cd').oninput = e => { selected.CooldownSeconds = +e.target.value; fill(e.target); $('cdText').textContent = cdText(selected); scheduleSave(); render(); };
+$('personal').onchange = e => { selected.IsPersonalCooldown = e.target.checked; $('cdText').textContent = cdText(selected); scheduleSave(); render(); };
+$('vol').oninput = e => { selected.Volume = +e.target.value; fill(e.target); $('volText').textContent = selected.Volume + '%'; scheduleSave(); };
+$('closeEditor').onclick = () => select(null);
+$('testBtn').onclick = () => selected && invoke('play_test', { command: selected });
+$('replaceBtn').onclick = async () => {
+  const r = await dialog.open({ title: 'Новый звуковой файл', filters: [{ name: 'Аудио', extensions: AUDIO }] });
+  if (!r || !selected) return;
+  selected.SoundFilePath = r; scheduleSave(); await refreshMissing(); fillEditor(selected);
+};
+$('delBtn').onclick = () => {
+  if (!selected) return;
+  if ($('delBtn').dataset.armed) {
+    const name = selected.Command; clearTimeout(delTimer); delete $('delBtn').dataset.armed;
+    cfg.CommandSettings = cfg.CommandSettings.filter(c => c !== selected); select(null); scheduleSave(); toast(`Команда ${name} удалена`);
+  } else {
+    $('delBtn').dataset.armed = 1; $('delBtn').textContent = 'Нажмите ещё раз для удаления';
+    delTimer = setTimeout(() => { delete $('delBtn').dataset.armed; $('delBtn').textContent = 'Удалить команду'; }, 3000);
+  }
+};
+
+// ───────── Подключение ─────────
+function setStatus(state, text) {
+  $('dot').className = 'dot ' + (state === 'ok' ? 'ok' : state === 'warn' ? 'warn' : '');
+  $('statusText').textContent = text;
+}
+$('connectBtn').onclick = async () => {
+  try {
+    if (connected) {
+      await invoke('disconnect'); connected = false;
+      $('connectBtn').textContent = 'Подключиться'; $('channel').disabled = false;
+    } else {
+      const ch = await invoke('connect', { channel: $('channel').value });
+      $('channel').value = ch; $('channel').disabled = true; connected = true;
+      $('connectBtn').textContent = 'Отключиться'; setStatus('warn', 'Подключаюсь…'); scheduleSave();
+    }
+  } catch (e) { toast(String(e)); }
+};
+$('channel').onkeydown = e => { if (e.key === 'Enter') $('connectBtn').click(); };
+$('channel').oninput = scheduleSave;
+
+// ───────── Плеер ─────────
+$('skipBtn').onclick = () => invoke('skip');
+$('clearBtn').onclick = () => invoke('clear_queue');
+$('master').oninput = e => {
+  cfg.MasterVolume = +e.target.value; fill(e.target); $('masterText').textContent = cfg.MasterVolume + '%';
+  invoke('set_master', { volume: cfg.MasterVolume }); scheduleSave();
+};
+
+// ───────── Настройки / импорт / экспорт ─────────
+function closeMenus() { document.querySelectorAll('.menu').forEach(m => m.classList.remove('open')); }
+$('menuBtn').onclick = e => { e.stopPropagation(); const o = $('menu').classList.contains('open'); closeMenus(); $('menu').classList.toggle('open', !o); };
+$('addBtn').onclick = e => { e.stopPropagation(); const o = $('addMenu').classList.contains('open'); closeMenus(); $('addMenu').classList.toggle('open', !o); };
+document.addEventListener('click', e => { if (!e.target.closest('.menu')) closeMenus(); });
+document.addEventListener('contextmenu', e => e.preventDefault());
+$('tray').onchange = e => { cfg.MinimizeToTray = e.target.checked; scheduleSave(); };
+$('importBtn').onclick = async () => {
+  closeMenus();
+  const path = await dialog.open({ title: 'Выберите config.json (в том числе из версии 1.2)', filters: [{ name: 'Настройки TTVChat', extensions: ['json'] }] });
+  if (!path) return;
+  try {
+    const imported = await invoke('import_config', { path });
+    let added = 0, dup = 0;
+    for (const c of imported.CommandSettings) {
+      if (cfg.CommandSettings.some(x => x.Command.toLowerCase() === c.Command.toLowerCase())) { dup++; continue; }
+      cfg.CommandSettings.push(c); added++;
+    }
+    if (!$('channel').value.trim()) $('channel').value = imported.LastChannelName;
+    if (readOnly) { await invoke('confirm_import_recovery'); readOnly = false; }
+    await invoke('save_config', { config: cfg }); await refreshMissing();
+    toast(`Импорт: добавлено ${added}, повторов ${dup}, без файла ${missing.size}`);
+  } catch (e) { toast(String(e)); }
+};
+$('exportBtn').onclick = async () => {
+  closeMenus();
+  const path = await dialog.save({ defaultPath: 'ttvchat-config.json', filters: [{ name: 'Настройки TTVChat', extensions: ['json'] }] });
+  if (!path) return;
+  try { cfg.LastChannelName = $('channel').value.trim(); await invoke('export_config', { config: cfg, path }); toast('Настройки экспортированы. Сами звуки хранятся отдельно.'); }
+  catch (e) { toast(String(e)); }
+};
+
+// ───────── Перетаскивание ─────────
+window.__TAURI__.webview.getCurrentWebview().onDragDropEvent(e => {
+  const t = e.payload.type;
+  if (t === 'enter' || t === 'over') $('drop').classList.add('show');
+  else if (t === 'leave') $('drop').classList.remove('show');
+  else if (t === 'drop') { $('drop').classList.remove('show'); addPaths(e.payload.paths); }
+});
+
+// ───────── События от Rust ─────────
+listen('log', e => log(e.payload));
+listen('status', e => setStatus(e.payload.state, e.payload.text));
+listen('player', e => {
+  const { playing, pending } = e.payload;
+  playingName = playing ? playing.command : null;
+  $('npTitle').textContent = playing ? playing.command : 'Тишина';
+  $('npSub').textContent = playing ? 'Запросил: ' + playing.user : 'Ждём команды из чата';
+  $('queue').textContent = pending ? `В очереди: ${pending}` : '';
+  $('clearBtn').style.display = pending ? '' : 'none';
+  render();
+});
+
+// ───────── Старт ─────────
+(async () => {
+  const st = await invoke('get_state');
+  cfg = st.config; readOnly = st.readOnly;
+  $('channel').value = cfg.LastChannelName; $('tray').checked = cfg.MinimizeToTray;
+  $('master').value = cfg.MasterVolume; fill($('master')); $('masterText').textContent = Math.round(cfg.MasterVolume) + '%';
+  if (st.loadError) log(st.loadError);
+  log('Готово. Перетащите звуки в окно или нажмите «Добавить звуки».');
+  log('Настройки: ' + st.configPath);
+  await refreshMissing();
+})();
+</script>
+</body>
+</html>
